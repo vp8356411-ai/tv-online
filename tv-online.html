@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ТВ онлайн — прямой эфир без рекламы</title>
+<meta name="description" content="Телеканалы онлайн в прямом эфире 24/7: новости, кино, мультфильмы, спорт, веб-камеры. Без регистрации и без рекламы.">
+<meta property="og:title" content="ТВ онлайн — прямой эфир без рекламы">
+<meta property="og:description" content="Телеканалы онлайн 24/7. Без регистрации и без рекламы.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#000000">
+<style>
+:root{--bg:#000;--panel:#12141a;--line:#23262f;--text:#eceef3;--mute:#8b91a1;--acc:#7cc4ff;color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:5;background:rgba(0,0,0,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;gap:10px;align-items:center}
+.logo{font-weight:800;font-size:1.15rem;letter-spacing:-.02em;white-space:nowrap}
+.logo b{color:var(--acc)}
+#q{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:9px 12px;font:inherit}
+#q:focus,button:focus-visible,.card:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+main{max-width:1100px;margin:0 auto;padding:14px}
+#player{display:none;margin-bottom:16px}
+#player.on{display:block}
+.vwrap{position:relative;background:#000;border:1px solid var(--line);border-radius:12px;overflow:hidden;aspect-ratio:16/9;touch-action:pan-y}
+video{width:100%;height:100%;background:#000}
+.pbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 2px}
+.pbar span{font-weight:600}
+.msg{position:absolute;inset:0;display:none;place-items:center;text-align:center;padding:16px;color:var(--mute);background:#000}
+.msg.on{display:grid}
+button{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+.go{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--acc);color:#001423;border:0;font-weight:700;font-size:1.1rem;padding:14px;border-radius:12px;margin-bottom:14px}
+.air{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;padding:12px;margin-bottom:14px;border-radius:12px}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{white-space:nowrap;border-radius:999px;padding:7px 14px}
+.tabs button[aria-pressed=true]{background:var(--text);color:#000;border-color:var(--text)}
+h2{font-size:1.05rem;margin:18px 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;cursor:pointer;text-align:left}
+.card:hover{border-color:var(--acc)}
+.card.cur{border-color:var(--acc)}
+.logo-sq{height:64px;border-radius:8px;display:grid;place-items:center;font-weight:800;font-size:1.3rem;background:#1b1e27;overflow:hidden}
+.logo-sq img{max-width:100%;max-height:100%;object-fit:contain}
+.name{font-weight:600;line-height:1.25}
+.cat{color:var(--mute);font-size:.85rem}
+.live{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;color:var(--acc)}
+.live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--acc)}
+.empty{color:var(--mute);padding:20px 0}
+.seo{color:var(--mute);margin-top:28px;max-width:70ch}
+details{border-top:1px solid var(--line);padding:10px 0;max-width:70ch}
+summary{cursor:pointer;font-weight:600}
+details p{color:var(--mute);margin-top:6px}
+footer{padding:24px 14px;text-align:center;color:var(--mute);font-size:.85rem}
+@media(min-width:900px){.tv-big .card{padding:18px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">ТВ<b>онлайн</b></div>
+  <input id="q" type="search" placeholder="Найти канал" aria-label="Поиск по каналам" autocomplete="off">
+  <button id="install" hidden>Установить</button>
+  <button id="imp" title="Загрузить плейлист .m3u">+ M3U</button>
+  <input id="file" type="file" accept=".m3u,.m3u8,text/plain" hidden>
+</header>
+<main>
+  <section id="player" aria-label="Плеер">
+    <div class="vwrap">
+      <video id="v" controls playsinline autoplay x-webkit-airplay="allow"></video>
+      <div class="msg" id="err">Не удалось загрузить поток. Выберите другой канал.</div>
+    </div>
+    <div class="pbar"><span id="now"></span><button id="fs">Во весь экран</button></div>
+  </section>
+
+  <button class="go" id="rand"><span aria-hidden="true">🎲</span> Смотреть!</button>
+  <button class="air" id="airplay"><span aria-hidden="true">📺</span> AirPlay — трансляция на телевизор</button>
+
+  
+  
+
+  <nav class="tabs" id="tabs" aria-label="Категории"></nav>
+  <div class="grid" id="grid"></div>
+  <p class="empty" id="none" hidden>Ничего не найдено. Попробуйте другое название.</p>
+
+  <div id="recentBox" hidden>
+    <h2>Вы недавно смотрели</h2>
+    <div class="grid" id="recent"></div>
+  </div>
+
+  <section class="seo">
+    <h2>ТВ онлайн бесплатно</h2>
+    <p>Смотрите телеканалы в прямом эфире без регистрации и без рекламы: новости, кино, мультфильмы, познавательные и спортивные каналы, региональное ТВ и веб-камеры. Страница работает на телефоне, планшете и телевизоре.</p>
+    <h2>Частые вопросы</h2>
+    <details><summary>Где смотреть новые сериалы?</summary><p>Добавьте в список каналов потоки с сериалами — они появятся в категории «Кино».</p></details>
+    <details><summary>Где смотреть фильмы на английском?</summary><p>Добавьте каналы на языке оригинала и выберите для них нужную категорию.</p></details>
+    <details><summary>Как смотреть на телефоне?</summary><p>Откройте страницу в браузере. Кнопка «Установить» добавит её на главный экран как приложение.</p></details>
+    <details><summary>Как смотреть на телевизоре?</summary><p>Страница открывается в браузере Android TV и Smart TV, карточки крупные и переключаются стрелками пульта.</p></details>
+  </section>
+</main>
+<footer>Без рекламы, трекеров и аккаунтов. История просмотров хранится только в вашем браузере.</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
+<script>
+/* ============ СПИСОК КАНАЛОВ ============
+   Добавляйте свои каналы сюда. Поля:
+   name — название, cat — категория (из CATS),
+   url — ссылка на HLS-поток (.m3u8), logo — адрес картинки (необязательно).
+   Подключайте только потоки, на показ которых у вас есть права.
+   Встроен ваш плейлист; каналы также можно загрузить кнопкой «+ M3U». */
+const CATS = ["Новости","Мультфильмы","Кино","Познавательные","Спорт","Региональное ТВ","Веб-камеры","Музыкальные клипы"];
+const CHANNELS = [
+  {"name":"Первый канал","cat":"Общие","logo":"http://bezbe.my1.ru/logo/1.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_1TVSD/variant.m3u8?version=3"},
+  {"name":"Россия 1","cat":"Общие","logo":"http://bezbe.my1.ru/logo/rossia1.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_RUSSIA1/variant.m3u8?version=3"},
+  {"name":"Россия 24","cat":"Общие","logo":"http://dvb.by/sources/logos/2702s.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_RUSSIA24/variant.m3u8?version=3"},
+  {"name":"Матч! ТВ","cat":"Спорт","logo":"http://images.vfl.ru/ii/1617773484/c1d1fcc8/33978059.jpg","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_MATCHTV/variant.m3u8?version=3"},
+  {"name":"НТВ","cat":"Общие","logo":"http://bezbe.my1.ru/logo/ntv.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_NTV/variant.m3u8?version=3"},
+  {"name":"ТВ Центр","cat":"Общие","logo":"http://bezbe.my1.ru/logo/tv_centr.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_TVC/variant.m3u8?version=3"},
+  {"name":"5 канал","cat":"Общие","logo":"http://bezbe.my1.ru/logo/5.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_5TV/variant.m3u8?version=3"},
+  {"name":"Звезда","cat":"Общие","logo":"http://bezbe.my1.ru/logo/zvezda.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_ZVEZDA/variant.m3u8?version=3"},
+  {"name":"ОТР","cat":"Общие","logo":"http://bezbe.my1.ru/logo/otr.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_OTR/variant.m3u8?version=3"},
+  {"name":"Суббота!","cat":"Общие","logo":"http://images.vfl.ru/ii/1612467996/743ac094/33219283.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_SUPER/variant.m3u8?version=3"},
+  {"name":"РЕН ТВ","cat":"Общие","logo":"http://bezbe.my1.ru/logo/ren.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_RENTV/variant.m3u8?version=3"},
+  {"name":"ТНТ","cat":"Общие","logo":"http://bezbe.my1.ru/logo/tnt.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_TNT/variant.m3u8?version=3"},
+  {"name":"СТС","cat":"Общие","logo":"http://bezbe.my1.ru/logo/sts.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_STS/variant.m3u8?version=3"},
+  {"name":"СТС Love","cat":"Общие","logo":"http://bezbe.my1.ru/logo/sts.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_STSLOVE/variant.m3u8?version=3"},
+  {"name":"Пятница!","cat":"Общие","logo":"http://bezbe.my1.ru/logo/5nitca.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_PYATNIZZA/variant.m3u8?version=3"},
+  {"name":"ТНТ4","cat":"Общие","logo":"http://bezbe.my1.ru/logo/tnt.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_TNT4/variant.m3u8?version=3"},
+  {"name":"ТВ 3","cat":"Общие","logo":"http://bezbe.my1.ru/logo/tv3.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_TV3/variant.m3u8?version=3"},
+  {"name":"2х2","cat":"Детские","logo":"http://images.vfl.ru/ii/1646029259/c14fb4fd/38248170.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_2X2/variant.m3u8?version=3"},
+  {"name":"Домашний","cat":"Общие","logo":"http://bezbe.my1.ru/logo/domashnii.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_DOMASHNIY/variant.m3u8?version=3"},
+  {"name":"Ю","cat":"Общие","logo":"http://fe-mos.svc.iptv.rt.ru/images/broadcastChannel1540215747749.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_U/variant.m3u8?version=3"},
+  {"name":"Россия К","cat":"Общие","logo":"http://bezbe.my1.ru/logo/kultura.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_RUSSIAK/variant.m3u8?version=3"},
+  {"name":"Карусель","cat":"Детские","logo":"http://bezbe.my1.ru/logo/karusel.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_KARUSEL/variant.m3u8?version=3"},
+  {"name":"Солнце","cat":"Детские","logo":"http://bezbe.my1.ru/logo/disney.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_DISNEY/variant.m3u8?version=3"},
+  {"name":"Мир","cat":"Общие","logo":"http://bezbe.my1.ru/logo/mir.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_MIR/variant.m3u8"},
+  {"name":"Русский роман","cat":"КИНО И СЕРИАЛЫ","logo":"","url":"http://dmitry-tv.ddns.net/hls/CH_RUSSKIY_ROMAN.m3u8"},
+  {"name":"Первый Ярославский","cat":"Общие","logo":"http://fe-ct.svc.iptv.rt.ru/images/broadcastChannel1455621667022.png","url":"http://rt-ct-yarl-htlive.cdn.ngenix.net/hls/CH_R01_OTT_CT_YARL_NTM/variant.m3u8?version=3"},
+  {"name":"Городской телеканал","cat":"Общие","logo":"http://fe-ct.svc.iptv.rt.ru/images/broadcastChannel1554195912035.png","url":"http://rt-ct-yarl-htlive.cdn.ngenix.net/hls/CH_R02_OTT_CT_YARL_GTREG/variant.m3u8?version=3"},
+  {"name":"Че!","cat":"Общие","logo":"http://dvb.by/sources/logos/1041s.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_PERETZ/variant.m3u8?version=3"},
+  {"name":"Прима","cat":"Общие","logo":"http://bezbe.my1.ru/logo/sts.png","url":"http://rt-sib-krsk-htlive.cdn.ngenix.net/hls/CH_R11_OTT_SIB_KRSK_STS/variant.m3u8?version=3"},
+  {"name":"Муз ТВ","cat":"Музыка","logo":"http://bezbe.my1.ru/logo/mtv.png","url":"http://zabava-htlive.cdn.ngenix.net/hls/CH_MUZTV/variant.m3u8?version=3"},
+  {"name":"ТРО","cat":"Позн-ные","logo":"http://images.vfl.ru/ii/1645975240/58576c63/38241751.png","url":"http://live2.mediacdn.ru/sr1/tro/playlist_1.5M.m3u8"},
+  {"name":"Эхо ТВ 24","cat":"Позн-ные","logo":"https://dvb.by/sources/logos/1460s.png","url":"http://stream.novouralsk-news.ru/echotv24/live.m3u8"},
+  {"name":"Теледом ТВ HD","cat":"Позн-ные","logo":"https://dvb.by/sources/logos/1531s.png","url":"https://iam-profi.ru/hls-live/livepkgr/_definst_/liveevent/td720.m3u8"},
+  {"name":"Кулинар ТВ","cat":"CatCast","logo":"http://images.vfl.ru/ii/1645975634/cae24d09/38241866.jpg","url":"https://api.alpaca.t62a.com/hls/9110/stream0.m3u8"},
+  {"name":"D-TV6","cat":"Каналы от Dmitry-tv","logo":"","url":"http://dmitry-tv.ddns.net:8666/his/CH_D-TV6"},
+  {"name":"Dmitry-tv HD","cat":"Каналы от Dmitry-tv","logo":"","url":"http://dmitry-tv.ddns.net:8000/his/CH_DMITRY-TVHD"},
+  {"name":"Краснодар (Краснодар)","cat":"РЕГИОНАЛЬНЫЕ","logo":"","url":"http://dmitry-tv.ddns.net/hls/region/CH_KRASNODAR_KRDAR.m3u8"},
+  {"name":"Дом кино","cat":"КИНО И СЕРИАЛЫ","logo":"","url":"http://dmitry-tv.ddns.net/hls/CH_DOMKINO.m3u8"},
+  {"name":"Дом кино ПРЕМИУМ HD","cat":"КИНО И СЕРИАЛЫ","logo":"","url":"http://dmitry-tv.ddns.net/hls/CH_DOMKINOPREMIUMHD.m3u8"},
+  {"name":"CINEMA","cat":"КИНО И СЕРИАЛЫ","logo":"","url":"http://dmitry-tv.ddns.net/hls/CH_CINEMA.m3u8"},
+  {"name":"KINO 24","cat":"КИНО И СЕРИАЛЫ","logo":"","url":"http://dmitry-tv.ddns.net/hls/CH_KINO24.m3u8"},
+  {"name":"КИНО ТВ","cat":"КИНО И СЕРИАЛЫ","logo":"","url":"http://dmitry-tv.ddns.net/hls/CH_KINOTV.m3u8"},
+  {"name":"AMEDIA I","cat":"КИНО И СЕРИАЛЫ","logo":"","url":"http://dmitry-tv.ddns.net/hls/CH_AMEDIAI.m3u8"},
+  {"name":"AMEDIA PREMIUM HD","cat":"КИНО И СЕРИАЛЫ","logo":"","url":"http://dmitry-tv.ddns.net/hls/CH_AMEDIAPREMIUMHD.m3u8"},
+  {"name":"ЕВРОКИНО","cat":"КИНО И СЕРИАЛЫ","logo":"","url":"http://dmitry-tv.ddns.net/hls/CH_EVROKINO.m3u8"},
+  {"name":"КИНОПОКАЗ","cat":"КИНО И СЕРИАЛЫ","logo":"","url":"http://dmitry-tv.ddns.net/hls/CH_KINOPOKAZ.m3u8"},
+  {"name":"HollywooD","cat":"КИНО И СЕРИАЛЫ","logo":"","url":"http://dmitry-tv.ddns.net/hls/CH_HOLLYWOOD.m3u8"},
+  {"name":"ВРЕМЯ","cat":"КИНО И СЕРИАЛЫ","logo":"","url":"http://dmitry-tv.ddns.net/hls/CH_VREMYA.m3u8"},
+  {"name":"312 Кино","cat":"Кино и сериалы 📽","logo":"https://i.ibb.co/DbxYtwN/image-59.png","url":"http://176.126.166.43:1935/live/312kino/playlist.m3u8"},
+  {"name":"312 Сериал","cat":"Кино и сериалы 📽","logo":"https://i.ibb.co/tM8TrxW/image-60.png","url":"http://176.126.166.43:1935/live/312musik/chunklist_w1516016500.m3u8"},
+  {"name":"Смотрим Кино и сериалы","cat":"Каналы с VPN","logo":"","url":"https://live-vgtrksmotrim.cdnvideo.ru/vgtrksmotrim/smotrim-live-01.smil/tracks-v5a1/mono.m3u8"},
+  {"name":"Кино 1 International","cat":"KINO+","logo":"","url":"http://kino-1.catcast.tv/content/38617/index.m3u8"},
+  {"name":"Беларусь 3 HD","cat":"KINO+","logo":"","url":"https://edge50.dc.beltelecom.by/ngtrk/smil:belarus3.smil/chunklist_b5160000_sleng.m3u8"},
+  {"name":"Рыбалка","cat":"ПОЗНАВАТЕЛЬНЫЕ","logo":"","url":"http://iptv.prosto.tv:7000/ch344/video.m3u8"},
+  {"name":"ЗАГОРОДНЯЯ ЖИЗНЬ","cat":"ПОЗНАВАТЕЛЬНЫЕ","logo":"","url":"http://185.57.68.33/40/mpegts"},
+  {"name":"TVMChannel","cat":"TEST (VPN)","logo":"","url":"http://cdn-01.bonus-tv.ru:80/tvm_edge/tracks-v1a1/index.m3u8"},
+  {"name":"Крик-ТВ","cat":"TEST (VPN)","logo":"","url":"http://cdn-01.bonus-tv.ru:80/kriktv_edge/index.m3u8"},
+  {"name":"Просвещение","cat":"TEST (VPN)","logo":"","url":"http://cdn-01.bonus-tv.ru:80/prosveschenie_edge/index.m3u8"},
+  {"name":"Patriot","cat":"TEST (VPN)","logo":"","url":"http://185.46.48.18:80/asvtv/index.m3u8"},
+  {"name":"Красная линия","cat":"Кино и сериалы 📽","logo":"https://i.ibb.co/TgWMBky/image-9.png","url":"http://s55766.cdn.ngenix.net/s55766-media-origin/rline_high/tracks-v1a1/mono.m3u8"},
+  {"name":"Осетия Иристон","cat":"TEST (VPN)","logo":"","url":"http://185.46.48.18:80/iriston/tracks-v1a1/mono.m3u8"},
+  {"name":"ТВОЕ ТВ HD","cat":"TEST (VPN)","logo":"http://epg.it999.ru/img2/5441.png","url":"http://tvoetv.space:8080/tvoetv/index.m3u8"},
+  {"name":"ТВОЕ ТВ HD - ЮМОР","cat":"TEST (VPN)","logo":"https://i.postimg.cc/m2FWVxW3/Background-Eraser-20230805-095630572.png","url":"http://tvoetv.space:8080/tvoetv_humor/index.m3u8"},
+  {"name":"Аист ТВ","cat":"TEST (VPN)","logo":"","url":"http://tv.streams.baikal-telecom.net/Aist/index.m3u8"},
+  {"name":"ТРК 555 HD","cat":"TEST (VPN)","logo":"https://logotype.download/tv/12186.png","url":"http://195.26.83.96:7029/play/a001"},
+  {"name":"Ялта ТВ","cat":"TEST (VPN)","logo":"http://yaltanet.ru/wp-content/uploads/2022/03/logo.png","url":"http://195.26.83.96:7029/play/a006"},
+  {"name":"Вместе-РФ","cat":"TEST (VPN)","logo":"","url":"http://cdn-01.bonus-tv.ru:80/vmesterf/tracks-v1a1/mono.m3u8"},
+  {"name":"Russian Extreme HD","cat":"TEST ⓵","logo":"","url":"http://195.26.83.96:7029/play/a008"},
+  {"name":"4 канал","cat":"TEST (VPN)","logo":"https://assets.iptv2022.com/static/channel/10539/logo_256_1655389509.png","url":"http://tele2dvrnat01-02.cdnvideo.ru:80/stream/NAT_EKB1/hls/1024x576@2024/playlist.m3u8"},
+  {"name":"Новый век (Тамбов)","cat":"TEST (VPN)","logo":"https://assets.iptv2022.com/static/channel/10630/logo_128_1652790001.png","url":"http://tele2dvrnat01-02.cdnvideo.ru/stream/NAT_Tambov/hls/1280x720@2500/playlist.m3u8"},
+  {"name":"Прима","cat":"TEST (VPN)","logo":"https://assets.iptv2022.com/static/channel/10459/logo_128_1652790001.png","url":"http://tele2dvrnat01-02.cdnvideo.ru:80/stream/NAT_Prima/hls/1920x1080@4504/playlist.m3u8"},
+  {"name":"Dancehits 80","cat":"TEST (VPN)","logo":"https://i.postimg.cc/HsvGnLG9/1.jpg","url":"http://dancehits80.denvs.ru:8080/index.m3u8"},
+  {"name":"MCM HD","cat":"TEST (VPN)","logo":"","url":"http://tv.streams.baikal-telecom.net/MCM/index.m3u8"},
+  {"name":"Радио Шансон","cat":"Музыка","logo":"https://dvb.by/sources/logos/1179s.png","url":"https://chanson-video.hostingradio.ru/hls/chansonabr/live_midq/index.m3u8"},
+  {"name":"ТНТ Music","cat":"Музыка","logo":"https://dvb.by/sources/logos/2620s.png","url":"http://uiptv.do.am/1ufc/603282189/playlist.m3u8"},
+  {"name":"Радио Страна HD","cat":"Музыка","logo":"http://hdradio.xperi.com/wp-content/themes/hdradio/android-chrome-256x256.png","url":"http://live.stranafm.cdnvideo.ru/stranafm/stranafm_hd.sdp/playlist.m3u8"},
+  {"name":"1mus.com","cat":"Музыка","logo":"http://dvb.by/sources/logos/1561s.png","url":"http://rtmp.one.by:1200"},
+  {"name":"1mus.com HD","cat":"Музыка","logo":"http://dvb.by/sources/logos/1561s.png","url":"http://rtmp.one.by:1300"},
+  {"name":"1mus.com","cat":"Музыка","logo":"http://dvb.by/sources/logos/1561s.png","url":"http://rtmp.one.by:2200"},
+  {"name":"1mus.com HD","cat":"Музыка","logo":"http://dvb.by/sources/logos/1561s.png","url":"http://rtmp.one.by:2300"},
+  {"name":"Ocko Expres","cat":"Музыка","logo":"https://dvb.by/sources/logos/2586s.png","url":"http://ocko-live.ssl.cdn.cra.cz/channels/ocko_expres/playlist/cze/live_hq.m3u8"},
+  {"name":"V2Beat HD","cat":"Музыка","logo":"https://dvb.by/sources/logos/3729s.png","url":"https://abr.de1se01.v2beat.live/playlist.m3u8"},
+  {"name":"Retro Music","cat":"Музыка","logo":"https://dvb.by/sources/logos/1235s.png","url":"http://stream.mediawork.cz/retrotv/retrotvHQ1/playlist.m3u8"},
+  {"name":"OneBY","cat":"МУЗЫКАЛЬНЫЕ","logo":"","url":"http://dmi3y-tv.ru/hls/CH_1MUZ.m3u8"},
+  {"name":"OneBY HD","cat":"МУЗЫКАЛЬНЫЕ","logo":"","url":"http://rtmp.one.by:1300"},
+  {"name":"OneBY [RUS]","cat":"МУЗЫКАЛЬНЫЕ","logo":"","url":"http://rtmp.one.by:2200"},
+  {"name":"OneBY HD [RUS]","cat":"МУЗЫКАЛЬНЫЕ","logo":"","url":"http://rtmp.one.by:2300"}
+];
+
+const $ = id => document.getElementById(id);
+const v = $("v"); let hls, cur = null, cat = "Все", query = "";
+const store = {
+  get(){try{return JSON.parse(localStorage.getItem("recent")||"[]")}catch(e){return[]}},
+  set(a){try{localStorage.setItem("recent",JSON.stringify(a))}catch(e){}}
+};
+
+function card(ch){
+  const b = document.createElement("button");
+  b.className = "card" + (cur===ch.url?" cur":"");
+  const l = document.createElement("div"); l.className = "logo-sq";
+  if(ch.logo){const i=new Image();i.loading="lazy";i.alt="";i.src=ch.logo;i.onerror=()=>{i.remove();l.textContent=ch.name[0]};l.append(i)}
+  else l.textContent = ch.name[0];
+  const n = document.createElement("div"); n.className="name"; n.textContent = ch.name;
+  const c = document.createElement("div"); c.className="cat"; c.textContent = ch.cat;
+  const lv = document.createElement("div"); lv.className="live"; lv.textContent="В эфире";
+  b.append(l,n,c,lv);
+  b.onclick = () => play(ch);
+  return b;
+}
+
+function render(){
+  const list = CHANNELS.filter(c => (cat==="Все"||c.cat===cat) && c.name.toLowerCase().includes(query));
+  const g = $("grid"); g.replaceChildren(...list.map(card));
+  $("none").textContent = CHANNELS.length ? "Ничего не найдено. Попробуйте другое название." : "Каналов пока нет. Загрузите плейлист кнопкой «+ M3U».";
+  $("none").hidden = list.length>0;
+  const rec = store.get().map(u => CHANNELS.find(c=>c.url===u)).filter(Boolean);
+  $("recentBox").hidden = !rec.length;
+  $("recent").replaceChildren(...rec.map(card));
+}
+
+function tabs(){
+  const t = $("tabs"); t.replaceChildren();
+  ["Все",...new Set(CHANNELS.map(x=>x.cat))].forEach(name=>{
+    const b = document.createElement("button");
+    b.textContent = name; b.setAttribute("aria-pressed", name===cat);
+    b.onclick = () => {cat=name; [...t.children].forEach(x=>x.setAttribute("aria-pressed",x===b)); render()};
+    t.append(b);
+  });
+}
+
+function play(ch){
+  cur = ch.url;
+  $("player").classList.add("on");
+  $("now").textContent = ch.name;
+  $("err").classList.remove("on");
+  if(hls){hls.destroy();hls=null}
+  if(window.Hls && Hls.isSupported() && !v.webkitShowPlaybackTargetPicker){
+    hls = new Hls({lowLatencyMode:true});
+    hls.on(Hls.Events.ERROR,(e,d)=>{if(d.fatal)$("err").classList.add("on")});
+    hls.loadSource(ch.url); hls.attachMedia(v);
+    hls.on(Hls.Events.MANIFEST_PARSED,()=>v.play().catch(()=>{}));
+  } else if(v.canPlayType("application/vnd.apple.mpegurl")){
+    v.onerror=()=>$("err").classList.add("on"); v.src = ch.url; v.play().catch(()=>{});
+  } else $("err").classList.add("on");
+  const r = [ch.url,...store.get().filter(u=>u!==ch.url)].slice(0,8);
+  store.set(r); render();
+  $("player").scrollIntoView({block:"start"});
+}
+
+function step(d){
+  const list = CHANNELS.filter(c => cat==="Все"||c.cat===cat);
+  if(!list.length) return;
+  const i = list.findIndex(c=>c.url===cur);
+  play(list[(i+d+list.length)%list.length]);
+}
+
+$("rand").onclick = () => {if(CHANNELS.length) play(CHANNELS[Math.floor(Math.random()*CHANNELS.length)])};
+$("q").oninput = e => {query = e.target.value.trim().toLowerCase(); render()};
+$("fs").onclick = () => {const w=document.querySelector(".vwrap"); (w.requestFullscreen||w.webkitRequestFullscreen||(()=>v.webkitEnterFullscreen&&v.webkitEnterFullscreen())).call(w)};
+
+/* импорт плейлиста .m3u: файл читается в браузере и никуда не отправляется */
+function parseM3U(text){
+  const out=[], lines=text.replace(/^\uFEFF/,"").split(/\r?\n/); let meta=null;
+  for(const raw of lines){
+    const ln=raw.trim(); if(!ln) continue;
+    if(ln.startsWith("#EXTINF")){
+      const g=/group-title="([^"]*)"/.exec(ln), lg=/tvg-logo="([^"]*)"/.exec(ln);
+      meta={name:ln.slice(ln.lastIndexOf(",")+1).trim()||"Канал",cat:(g&&g[1].trim())||"Другое",logo:lg?lg[1]:""};
+    } else if(!ln.startsWith("#") && meta){
+      out.push({...meta,url:ln.split("#")[0]}); meta=null;
+    }
+  }
+  return out;
+}
+$("imp").onclick=()=>$("file").click();
+$("file").onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const list=parseM3U(await f.text());
+  if(!list.length){alert("В файле не найдено каналов.");return}
+  CHANNELS.splice(0,CHANNELS.length,...list); cat="Все"; tabs(); render();
+  e.target.value="";
+};
+
+/* AirPlay: Safari на iPhone, iPad и Mac; в Chrome — стандартная трансляция (Chromecast) */
+$("airplay").onclick=()=>{
+  if(!cur){alert("Сначала включите канал, затем нажмите AirPlay.");return}
+  if(v.webkitShowPlaybackTargetPicker) v.webkitShowPlaybackTargetPicker();
+  else if(v.remote && v.remote.prompt) v.remote.prompt().catch(()=>alert("Устройства для трансляции не найдены."));
+  else alert("AirPlay работает в Safari на iPhone, iPad и Mac. В этом браузере или приложении он недоступен.");
+};
+
+/* свайп влево/вправо — переключение каналов */
+let sx=null;
+const vw = document.querySelector(".vwrap");
+vw.addEventListener("touchstart",e=>{sx=e.touches[0].clientX},{passive:true});
+vw.addEventListener("touchend",e=>{
+  if(sx===null) return;
+  const dx = e.changedTouches[0].clientX - sx; sx=null;
+  if(Math.abs(dx)>80) step(dx<0?1:-1);
+});
+/* стрелки пульта */
+addEventListener("keydown",e=>{
+  if(e.target.id==="q") return;
+  if(!cur && (e.key==="ArrowUp"||e.key==="ArrowDown")) return;
+  if(e.key==="ChannelUp"||e.key==="PageUp"||e.key==="ArrowUp"){e.preventDefault();step(1)}
+  if(e.key==="ChannelDown"||e.key==="PageDown"||e.key==="ArrowDown"){e.preventDefault();step(-1)}
+});
+
+/* установка как приложения (PWA) */
+let dp;
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();dp=e;$("install").hidden=false});
+$("install").onclick = async()=>{if(dp){dp.prompt();await dp.userChoice;dp=null;$("install").hidden=true}};
+try{
+  const m = {name:"ТВ онлайн",short_name:"ТВ",display:"standalone",background_color:"#000000",theme_color:"#000000",start_url:location.href,
+    icons:[{src:"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#000"/><rect x="96" y="150" width="320" height="200" rx="28" fill="none" stroke="#7cc4ff" stroke-width="28"/><path d="M230 210l70 40-70 40z" fill="#7cc4ff"/></svg>'),sizes:"512x512",type:"image/svg+xml"}]};
+  const l = document.createElement("link"); l.rel="manifest";
+  l.href = URL.createObjectURL(new Blob([JSON.stringify(m)],{type:"application/manifest+json"}));
+  document.head.append(l);
+}catch(e){}
+
+if(/Android TV|SMART-TV|SmartTV|Tizen|Web0S|BRAVIA/i.test(navigator.userAgent)) document.body.classList.add("tv-big");
+tabs(); render();
+</script>
+</body>
+</html>
